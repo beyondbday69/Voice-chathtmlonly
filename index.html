@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Discord Style Voice Channel</title>
+    <title>chudap voice chat</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* --- DISCORD MOBILE THEME VARIABLES --- */
@@ -28,9 +28,8 @@
             color: var(--text-main);
             margin: 0;
             padding: 0;
-            /* 🚀 FIX: Used dvh for perfect mobile height, with vh as fallback */
             height: 100vh; 
-            height: 100dvh; 
+            height: 100dvh; /* Mobile Perfect Height */
             display: flex;
             flex-direction: column;
             overflow: hidden; 
@@ -139,7 +138,6 @@
             flex-direction: column;
         }
 
-        /* Active Speaker Highlight */
         .speaking {
             border-color: var(--success) !important;
             box-shadow: 0 0 20px rgba(59, 165, 92, 0.6) !important;
@@ -234,7 +232,6 @@
         
         .drawer-content { flex: 1; overflow-y: auto; padding: 15px; }
 
-        /* Participant List & Volume Control Styling */
         .participant-item { 
             display: flex; 
             align-items: center; 
@@ -381,10 +378,10 @@
             }, 1000);
         }
 
-        // 🚀 FIX: Audio Volume Control Logic
+        // Audio Volume Control Logic (FIXED: using remoteParticipants)
         window.changeUserVolume = (sid, volumeValue) => {
             window.userVolumes[sid] = parseFloat(volumeValue);
-            const participant = room.participants.get(sid);
+            const participant = room.remoteParticipants.get(sid); // 🚀 FIX HERE
             if (participant) {
                 participant.audioTrackPublications.forEach(pub => {
                     if (pub.track && pub.track.attachedElements) {
@@ -424,7 +421,6 @@
 
                 room = new Room({ adaptiveStream: true, dynacast: true });
 
-                // 🚀 FIX: Active Speakers Highlight
                 room.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
                     document.querySelectorAll('.video-container').forEach(el => el.classList.remove('speaking'));
                     speakers.forEach(speaker => {
@@ -433,11 +429,9 @@
                     });
                 });
 
-                // 🚀 FIX: Realtime Mute Sync (Dusre users ka mic icon update karna)
                 room.on(RoomEvent.TrackMuted, () => updateParticipantList());
                 room.on(RoomEvent.TrackUnmuted, () => updateParticipantList());
 
-                // 🚀 FIX: Jaise hi koi judega, box ban jayega
                 room.on(RoomEvent.ParticipantConnected, (participant) => {
                     createAvatarBox(participant);
                     updateParticipantList();
@@ -447,7 +441,6 @@
                    attachTrack(track, participant);
                    updateParticipantList();
                    
-                   // Apply saved volume
                    if (track.kind === 'audio') {
                        if (window.userVolumes[participant.sid] !== undefined) {
                            track.attachedElements.forEach(el => el.volume = window.userVolumes[participant.sid]);
@@ -458,7 +451,7 @@
                 });
 
                 room.on(RoomEvent.TrackUnsubscribed, (track, pub, participant) => {
-                    if (track) track.detach(); // 🚀 FIX: Error handle kiya
+                    if (track) track.detach(); 
                     updateParticipantList();
                 });
                 
@@ -484,8 +477,8 @@
                 createAvatarBox(room.localParticipant, true);
                 updateParticipantList();
 
-                // Initial load pe sabke boxes banao (agar already room me hain)
-                room.participants.forEach(participant => {
+                // 🚀 FIX HERE: remoteParticipants
+                room.remoteParticipants.forEach(participant => {
                     createAvatarBox(participant);
                 });
 
@@ -505,7 +498,7 @@
                 container.className = 'video-container fade-in'; 
                 container.id = `container-${participant.sid}`;
                 
-                const initial = participant.identity.charAt(0).toUpperCase();
+                const initial = participant.identity ? participant.identity.charAt(0).toUpperCase() : '?';
                 const avatar = document.createElement('div');
                 avatar.className = 'large-avatar';
                 avatar.innerText = initial;
@@ -526,23 +519,24 @@
             let container = createAvatarBox(participant, isLocal);
             const element = track.attach();
             
-            // Audio elements don't need UI positioning, just append to play
             if (track.kind === 'video') {
                 const oldVid = container.querySelector('video');
                 if(oldVid) oldVid.remove();
                 if (isLocal) element.style.transform = 'scaleX(-1)'; 
                 container.insertBefore(element, container.firstChild);
             } else {
-                container.appendChild(element); // Append audio so it plays
+                container.appendChild(element); 
             }
         }
 
-        // 🚀 FIX: Update List & Badges flawlessly
+        // 🚀 FIX HERE: remoteParticipants values
         function updateParticipantList() {
             participantList.innerHTML = '';
-            const participants = [room.localParticipant, ...room.participants.values()];
+            // Safely get local and remote participants
+            const participants = room ? [room.localParticipant, ...room.remoteParticipants.values()] : [];
             
             participants.forEach(p => {
+                if(!p) return;
                 const isLocal = p === room.localParticipant;
                 const vol = window.userVolumes[p.sid] !== undefined ? window.userVolumes[p.sid] : 1;
                 const volIcon = vol == 0 ? "fa-volume-xmark" : (vol < 0.5 ? "fa-volume-low" : "fa-volume-high");
@@ -552,7 +546,7 @@
                 const item = document.createElement('div');
                 item.className = 'participant-item';
                 let htmlContent = `
-                    <div class="participant-avatar">${p.identity.charAt(0).toUpperCase()}</div>
+                    <div class="participant-avatar">${p.identity ? p.identity.charAt(0).toUpperCase() : '?'}</div>
                     <div class="participant-info">
                         <div class="participant-name">${p.identity} ${isLocal ? '(You)' : ''} ${micIconHtml}</div>
                 `;
