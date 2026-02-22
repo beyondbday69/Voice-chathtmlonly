@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>chudap voice chat</title>
+    <title>Discord Style Voice Channel</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* --- DISCORD MOBILE THEME VARIABLES --- */
@@ -29,7 +29,7 @@
             margin: 0;
             padding: 0;
             height: 100vh; 
-            height: 100dvh; /* Mobile Perfect Height */
+            height: 100dvh; 
             display: flex;
             flex-direction: column;
             overflow: hidden; 
@@ -100,7 +100,10 @@
         .room-details { display: flex; flex-direction: column; }
         #room-name-display { font-weight: bold; font-size: 1.1rem; }
         #uptime-counter { font-size: 0.8rem; color: var(--text-muted); }
-        .header-icon { font-size: 1.2rem; color: var(--text-muted); padding: 10px; cursor: pointer; }
+        .header-icon { font-size: 1.2rem; color: var(--text-muted); padding: 10px; cursor: pointer; transition: 0.2s;}
+        .header-icon:active { color: var(--text-main); transform: scale(0.9); }
+        
+        .top-bar-actions { display: flex; gap: 5px; }
 
         /* AVATAR GRID AREA */
         #video-grid-container {
@@ -297,8 +300,9 @@
                 <span id="room-name-display">Lounge</span>
                 <span id="uptime-counter"><i class="fa-solid fa-stopwatch"></i> 00:00</span>
             </div>
-            <div>
-                <i class="fa-solid fa-users header-icon" id="toggle-drawer-btn"></i>
+            <div class="top-bar-actions">
+                <i class="fa-solid fa-share-nodes header-icon" id="share-room-btn" title="Share Room Link"></i>
+                <i class="fa-solid fa-users header-icon" id="toggle-drawer-btn" title="Participants"></i>
             </div>
         </div>
 
@@ -344,7 +348,6 @@
         let room;
         let uptimeInterval;
         let startTime;
-
         window.userVolumes = {}; 
 
         const setupContainer = document.getElementById('setup-container');
@@ -355,6 +358,33 @@
         const uptimeCounter = document.getElementById('uptime-counter');
         const sideDrawer = document.getElementById('side-drawer');
         const participantList = document.getElementById('participant-list');
+        const roomInput = document.getElementById('room-input');
+
+        // 🚀 PRE-FILL ROOM NAME FROM URL (Invite Link Logic)
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlRoom = urlParams.get('room');
+        if (urlRoom) {
+            roomInput.value = urlRoom;
+        }
+
+        // 🚀 SHARE LINK LOGIC
+        document.getElementById('share-room-btn').onclick = async () => {
+            const currentRoom = roomNameDisplay.innerText;
+            const shareUrl = window.location.origin + window.location.pathname + '?room=' + encodeURIComponent(currentRoom);
+            
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        title: 'Join my Voice Channel',
+                        text: `Aaja bhai room me, idhar hai: ${currentRoom}`,
+                        url: shareUrl
+                    });
+                } catch(e) { console.log("Share cancelled", e); }
+            } else {
+                navigator.clipboard.writeText(shareUrl);
+                alert("Room link copied to clipboard! Send it to your friends.");
+            }
+        };
 
         // DRAWER
         document.getElementById('toggle-drawer-btn').onclick = () => sideDrawer.classList.add('open');
@@ -378,24 +408,24 @@
             }, 1000);
         }
 
-        // Audio Volume Control Logic (FIXED: using remoteParticipants)
+        // 🚀 FIX: Audio Volume Control using LiveKit setVolume()
         window.changeUserVolume = (sid, volumeValue) => {
-            window.userVolumes[sid] = parseFloat(volumeValue);
-            const participant = room.remoteParticipants.get(sid); // 🚀 FIX HERE
+            const vol = parseFloat(volumeValue);
+            window.userVolumes[sid] = vol;
+            const participant = room.remoteParticipants.get(sid);
+            
             if (participant) {
                 participant.audioTrackPublications.forEach(pub => {
-                    if (pub.track && pub.track.attachedElements) {
-                        pub.track.attachedElements.forEach(el => {
-                            el.volume = window.userVolumes[sid];
-                        });
+                    if (pub.track) {
+                        pub.track.setVolume(vol); // This is the official robust way!
                     }
                 });
             }
             
             const icon = document.getElementById(`vol-icon-${sid}`);
             if(icon) {
-                if(volumeValue == 0) icon.className = "fa-solid fa-volume-xmark";
-                else if(volumeValue < 0.5) icon.className = "fa-solid fa-volume-low";
+                if(vol === 0) icon.className = "fa-solid fa-volume-xmark";
+                else if(vol < 0.5) icon.className = "fa-solid fa-volume-low";
                 else icon.className = "fa-solid fa-volume-high";
             }
         };
@@ -442,11 +472,13 @@
                    updateParticipantList();
                    
                    if (track.kind === 'audio') {
-                       if (window.userVolumes[participant.sid] !== undefined) {
-                           track.attachedElements.forEach(el => el.volume = window.userVolumes[participant.sid]);
-                       } else {
-                           window.userVolumes[participant.sid] = 1.0; 
+                       // 🚀 Apply saved volume immediately using setVolume
+                       let vol = window.userVolumes[participant.sid];
+                       if (vol === undefined) {
+                           vol = 1.0; 
+                           window.userVolumes[participant.sid] = vol;
                        }
+                       track.setVolume(vol);
                    }
                 });
 
@@ -462,7 +494,11 @@
                     updateParticipantList();
                 });
 
-                room.on(RoomEvent.Disconnected, () => location.reload());
+                room.on(RoomEvent.Disconnected, () => {
+                    // Update URL params to remove room so reload feels fresh
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    location.reload();
+                });
 
                 // Connect
                 await room.connect(livekitUrl, data.token);
@@ -477,7 +513,6 @@
                 createAvatarBox(room.localParticipant, true);
                 updateParticipantList();
 
-                // 🚀 FIX HERE: remoteParticipants
                 room.remoteParticipants.forEach(participant => {
                     createAvatarBox(participant);
                 });
@@ -529,17 +564,15 @@
             }
         }
 
-        // 🚀 FIX HERE: remoteParticipants values
         function updateParticipantList() {
             participantList.innerHTML = '';
-            // Safely get local and remote participants
             const participants = room ? [room.localParticipant, ...room.remoteParticipants.values()] : [];
             
             participants.forEach(p => {
                 if(!p) return;
                 const isLocal = p === room.localParticipant;
                 const vol = window.userVolumes[p.sid] !== undefined ? window.userVolumes[p.sid] : 1;
-                const volIcon = vol == 0 ? "fa-volume-xmark" : (vol < 0.5 ? "fa-volume-low" : "fa-volume-high");
+                const volIcon = vol === 0 ? "fa-volume-xmark" : (vol < 0.5 ? "fa-volume-low" : "fa-volume-high");
                 
                 const micIconHtml = `<i class="fa-solid fa-microphone${p.isMicrophoneEnabled ? '' : '-slash'}" style="color: ${p.isMicrophoneEnabled ? 'inherit' : 'var(--danger)'}"></i>`;
                 
