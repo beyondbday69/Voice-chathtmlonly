@@ -3,273 +3,616 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Voice Room (ZegoCloud SFU)</title>
-    
-    <script src="https://unpkg.com/zego-express-engine-webrtc/zego-express-engine-webrtc.js"></script>
+    <title>Discord Style Voice Channel</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
     <style>
+        /* --- DISCORD MOBILE THEME VARIABLES --- */
         :root {
-            --bg-primary: #36393f; --bg-secondary: #2f3136; --bg-tertiary: #202225;
-            --text-normal: #dcddde; --text-muted: #72767d; --accent: #5865F2;
-            --danger: #ed4245; --success: #3ba55d;
+            --bg-primary: #36393f;    
+            --bg-secondary: #2f3136;  
+            --bg-tertiary: #202225;   
+            --accent: #5865f2;        
+            --danger: #ed4245;        
+            --success: #3ba55c;       
+            --text-main: #ffffff;
+            --text-muted: #b9bbbe;
+            --control-bar-height: 80px;
+            --top-bar-height: 60px;
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
-        body { background-color: var(--bg-primary); color: var(--text-normal); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
-        .header { background-color: var(--bg-secondary); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 2px rgba(0,0,0,0.2); z-index: 10; padding-top: env(safe-area-inset-top, 15px); }
-        .channel-name { font-weight: bold; font-size: 1.1rem; display: flex; align-items: center; gap: 8px; }
-        .my-id-container { font-size: 0.8rem; color: var(--text-muted); text-align: right; }
-        #my-id { color: var(--accent); font-weight: bold; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
-        .main-area { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 20px; }
-        .section-title { font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid var(--bg-tertiary); padding-bottom: 5px; }
-        
-        .users-grid { display: flex; flex-direction: column; gap: 15px; }
-        .user-card { background-color: var(--bg-secondary); border-radius: 12px; padding: 12px 15px; display: flex; align-items: center; gap: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .avatar { width: 50px; height: 50px; border-radius: 50%; background-color: var(--accent); display: flex; justify-content: center; align-items: center; font-size: 1.2rem; transition: 0.2s; border: 2px solid transparent; flex-shrink: 0; }
-        .speaking { border-color: var(--success); box-shadow: 0 0 0 3px var(--success); }
-        .user-info { flex: 1; overflow: hidden; }
-        .user-info h3 { font-size: 1rem; margin-bottom: 2px; }
-        .user-info p { font-size: 0.75rem; color: var(--text-muted); }
+        body {
+            font-family: 'gg sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            height: 100vh; 
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; 
+        }
 
-        .friend-controls { width: 35px; height: 35px; border-radius: 50%; display: flex; justify-content: center; align-items: center; background-color: var(--bg-tertiary); cursor: pointer; color: var(--text-normal); border: none; }
-        .friend-controls.muted { color: var(--danger); }
-
-        .connect-section { background-color: var(--bg-tertiary); padding: 15px; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; margin-top: auto; }
-        .connect-section input { padding: 10px; border-radius: 5px; border: none; background-color: var(--bg-secondary); color: var(--text-normal); outline: none; }
-        .btn-join { background-color: var(--success); color: white; border: none; border-radius: 5px; padding: 10px; font-weight: bold; cursor: pointer; }
-
-        .controls { background-color: var(--bg-tertiary); padding: 15px 20px; display: flex; justify-content: space-around; align-items: center; padding-bottom: env(safe-area-inset-bottom, 20px); }
-        .control-btn { width: 50px; height: 50px; border-radius: 50%; border: none; background-color: var(--bg-secondary); color: var(--text-normal); font-size: 1.2rem; display: flex; justify-content: center; align-items: center; cursor: pointer; }
-        .control-btn.muted { background-color: var(--text-normal); color: var(--danger); }
-        .control-btn.disconnect { background-color: var(--danger); color: white; display: none; }
         .hidden { display: none !important; }
+        
+        /* --- LOGIN SCREEN --- */
+        #setup-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 30px;
+            background: var(--bg-primary);
+            z-index: 100;
+        }
+        h2 { text-align: center; color: var(--accent); margin-bottom: 30px; }
+        
+        .input-group { margin-bottom: 20px; }
+        input[type="text"] {
+            width: 100%;
+            padding: 15px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--bg-secondary);
+            border-radius: 8px;
+            color: var(--text-main);
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        input[type="text"]:focus { border-color: var(--accent); }
+        
+        .btn-login {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            background: var(--accent);
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-login:active { transform: scale(0.98); background: #4752c4; }
+        
+        /* --- MAIN CALL UI LAYOUT --- */
+        #app-layout {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+            position: relative;
+        }
 
-        /* Hidden area for remote audio streams */
-        #audio-container { display: none; }
+        /* TOP BAR */
+        #top-bar {
+            height: var(--top-bar-height);
+            background: var(--bg-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+        .room-details { display: flex; flex-direction: column; }
+        #room-name-display { font-weight: bold; font-size: 1.1rem; }
+        #uptime-counter { font-size: 0.8rem; color: var(--text-muted); }
+        .header-icon { font-size: 1.2rem; color: var(--text-muted); padding: 10px; cursor: pointer; }
+
+        /* AVATAR/VIDEO GRID AREA */
+        #video-grid-container {
+            flex: 1; 
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #video-grid {
+            width: 100%;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 15px;
+            align-items: center;
+            justify-items: center;
+        }
+
+        /* AVATAR BOX (Discord Style) */
+        .video-container {
+            position: relative;
+            background: var(--bg-tertiary);
+            border-radius: 16px;
+            overflow: hidden;
+            width: 100%;
+            aspect-ratio: 1/1; /* Square box for voice avatars */
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            transition: all 0.2s ease; 
+            border: 3px solid transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        /* Active Speaker Highlight */
+        .speaking {
+            border-color: var(--success) !important;
+            box-shadow: 0 0 20px rgba(59, 165, 92, 0.6) !important;
+            transform: scale(1.05);
+        }
+
+        /* Large Initial Avatar */
+        .large-avatar {
+            width: 60px;
+            height: 60px;
+            background: var(--accent);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            z-index: 1;
+        }
+
+        video {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            object-fit: cover;
+            z-index: 5; /* Video will hide avatar if screen sharing */
+        }
+
+        .identity-badge {
+            position: absolute;
+            bottom: 8px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* BOTTOM CONTROLS BAR */
+        #bottom-controls {
+            height: var(--control-bar-height);
+            background: var(--bg-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            padding: 0 20px;
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.3);
+        }
+
+        .control-btn {
+            width: 55px;
+            height: 55px;
+            border-radius: 50%;
+            border: none;
+            background: var(--bg-tertiary);
+            color: var(--text-main);
+            font-size: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .control-btn:active { transform: scale(0.9); }
+        .btn-active { background: var(--text-main); color: var(--bg-primary); }
+        .btn-leave { background: var(--danger); color: white; }
+        .btn-muted { background: var(--danger); color: white; } /* Red when mic is off */
+
+        /* --- SIDE DRAWER --- */
+        .drawer {
+            position: absolute;
+            top: var(--top-bar-height);
+            bottom: var(--control-bar-height);
+            right: -100%; 
+            width: 85%; 
+            max-width: 350px;
+            background: var(--bg-secondary);
+            z-index: 20;
+            transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            box-shadow: -5px 0 15px rgba(0,0,0,0.5);
+        }
+        .drawer.open { right: 0; }
+        
+        .drawer-content { flex: 1; overflow-y: auto; padding: 15px; }
+
+        /* Participant List & Volume Control Styling */
+        .participant-item { 
+            display: flex; 
+            align-items: center; 
+            padding: 12px; 
+            border-radius: 8px; 
+            margin-bottom: 10px; 
+            background: var(--bg-tertiary); 
+            flex-wrap: wrap;
+        }
+        .participant-avatar { 
+            width: 40px; height: 40px; 
+            background: var(--accent); 
+            border-radius: 50%; 
+            margin-right: 12px; 
+            display: flex; align-items: center; justify-content: center; 
+            font-weight: bold; font-size: 18px;
+        }
+        .participant-info { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+        .participant-name { font-weight: bold; font-size: 15px; }
+        
+        /* Volume Slider Customization */
+        .volume-control { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
+        .volume-control i { font-size: 12px; color: var(--text-muted); }
+        input[type=range] {
+            flex: 1;
+            height: 4px;
+            background: var(--bg-secondary);
+            border-radius: 5px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+        }
+
+        .drawer-tabs { display: flex; background: var(--bg-tertiary); padding: 10px; gap: 10px; }
+        .tab-btn { flex: 1; padding: 10px; border: none; background: transparent; color: var(--text-muted); border-radius: 5px; cursor: pointer; font-weight: bold;}
+        .tab-btn.active-tab { background: var(--bg-secondary); color: var(--text-main); }
     </style>
 </head>
 <body>
 
-    <header class="header">
-        <div class="channel-name"><i class="fa-solid fa-server"></i> Voice Room</div>
-        <div class="my-id-container">Name: <br><span id="my-name">Loading...</span></div>
-    </header>
-
-    <main class="main-area">
-        
-        <div id="voice-channel" class="hidden">
-            <div class="section-title">Voice Channel: <span id="current-room-name"></span></div>
-            <div class="users-grid" id="active-users-container">
-                <div class="user-card">
-                    <div class="avatar" id="local-avatar"><i class="fa-solid fa-user"></i></div>
-                    <div class="user-info">
-                        <h3>You</h3>
-                        <p id="mic-status">Mic Active</p>
-                    </div>
-                </div>
-                </div>
+    <div id="setup-container">
+        <h2><i class="fa-brands fa-discord"></i> Voice Channel</h2>
+        <div class="input-group">
+            <input type="text" id="username-input" placeholder="Display Name">
         </div>
-
-        <div class="connect-section" id="connect-section">
-            <div class="section-title">Join a Voice Channel</div>
-            <input type="text" id="room-id" placeholder="Enter Room Name (e.g. ChillZone)">
-            <button class="btn-join" onclick="joinRoom()">Join Server</button>
+        <div class="input-group">
+            <input type="text" id="room-input" placeholder="Room Name (e.g., Lounge)">
         </div>
-
-    </main>
-
-    <div class="controls">
-        <button class="control-btn active" id="btn-mic" onclick="toggleMic()">
-            <i class="fa-solid fa-microphone"></i>
-        </button>
-        <button class="control-btn disconnect" id="btn-disconnect" onclick="leaveRoom()">
-            <i class="fa-solid fa-phone-slash"></i>
-        </button>
+        <button id="connect-btn" class="btn-login">Join Channel</button>
     </div>
 
-    <div id="audio-container"></div>
-
-    <script>
-        // --- 1. ZegoCloud Configuration ---
-        const appID = 864353224; // Aapki di hui AppID
-        const serverURL = "wss://webliveroom864353224-api.coolzcloud.com/ws"; // Aapka Server URL
+    <div id="app-layout" class="hidden">
         
-        // ⚠️ ZAROORI: Browser ke liye Token chahiye. 
-        // Test karne ke liye Zego Console se "Test Token" generate karke yahan daalein:
-        const TOKEN = "eac61873d3690282da9b0ea0f9f9b892"; 
+        <div id="top-bar">
+            <div class="room-details">
+                <span id="room-name-display">Lounge</span>
+                <span id="uptime-counter"><i class="fa-solid fa-stopwatch"></i> 00:00</span>
+            </div>
+            <div>
+                <i class="fa-solid fa-users header-icon" id="toggle-drawer-btn"></i>
+            </div>
+        </div>
 
-        // Zego Engine Initialize
-        const zg = new ZegoExpressEngine(appID, serverURL);
+        <div id="video-grid-container">
+            <div id="video-grid">
+                </div>
+        </div>
 
-        // --- 2. User Setup ---
-        let localStream;
-        let isMuted = false;
-        let currentRoom = "";
+        <div id="bottom-controls">
+            <button id="toggle-mic" class="control-btn" title="Toggle Mic">
+                <i class="fa-solid fa-microphone"></i>
+            </button>
+            <button id="toggle-screen" class="control-btn" title="Share Screen">
+                <i class="fa-solid fa-desktop"></i>
+            </button>
+            <button id="leave-btn" class="control-btn btn-leave" title="Disconnect">
+                <i class="fa-solid fa-phone-slash"></i>
+            </button>
+        </div>
+
+        <div id="side-drawer" class="drawer">
+            <div class="drawer-tabs">
+                <button class="tab-btn active-tab" onclick="switchTab('participants')">Users</button>
+                <button class="tab-btn" onclick="switchTab('rooms')">Public Rooms</button>
+                <i class="fa-solid fa-xmark header-icon" id="close-drawer-btn" style="margin-left: auto;"></i>
+            </div>
+            
+            <div id="participants-tab" class="drawer-content">
+                <div id="participant-list"></div>
+            </div>
+             <div id="rooms-tab" class="drawer-content hidden" style="text-align: center; color: var(--text-muted); padding-top: 50px;">
+                <i class="fa-solid fa-planet-ringed" style="font-size: 3rem; margin-bottom: 20px;"></i>
+                <p>No public rooms active.</p>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { Room, RoomEvent, VideoPresets } from 'https://esm.sh/livekit-client';
+
+        const livekitUrl = 'wss://discord-w15t720k.livekit.cloud'; 
+        const backendApiUrl = 'https://livekit-backend-kappa.vercel.app/api/getToken';
+
+        let room;
+        let uptimeInterval;
+        let startTime;
+
+        // Har dusre user ki local volume save karne ke liye
+        window.userVolumes = {}; 
+
+        const setupContainer = document.getElementById('setup-container');
+        const appLayout = document.getElementById('app-layout');
+        const videoGrid = document.getElementById('video-grid');
+        const connectBtn = document.getElementById('connect-btn');
+        const roomNameDisplay = document.getElementById('room-name-display');
+        const uptimeCounter = document.getElementById('uptime-counter');
+        const sideDrawer = document.getElementById('side-drawer');
+        const participantList = document.getElementById('participant-list');
+
+        // DRAWER LOGIC
+        document.getElementById('toggle-drawer-btn').onclick = () => sideDrawer.classList.add('open');
+        document.getElementById('close-drawer-btn').onclick = () => sideDrawer.classList.remove('open');
         
-        // Generate a random User ID and Name
-        const userID = Math.random().toString(36).substring(2, 10);
-        const userName = "User_" + Math.floor(Math.random() * 1000);
-        document.getElementById('my-name').innerText = userName;
+        window.switchTab = (tabName) => {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active-tab'));
+            event.target.classList.add('active-tab');
+            document.getElementById('participants-tab').classList.toggle('hidden', tabName !== 'participants');
+            document.getElementById('rooms-tab').classList.toggle('hidden', tabName !== 'rooms');
+        }
 
-        // UI Elements
-        const activeUsersContainer = document.getElementById('active-users-container');
-        const connectSection = document.getElementById('connect-section');
-        const voiceChannel = document.getElementById('voice-channel');
-        const btnDisconnect = document.getElementById('btn-disconnect');
-        const btnMic = document.getElementById('btn-mic');
-        const micStatus = document.getElementById('mic-status');
-        const audioContainer = document.getElementById('audio-container');
+        // TIMER LOGIC
+        function startUptimeTimer() {
+            startTime = Date.now();
+            uptimeInterval = setInterval(() => {
+                const diff = Math.floor((Date.now() - startTime) / 1000);
+                const mins = Math.floor(diff / 60).toString().padStart(2, '0');
+                const secs = (diff % 60).toString().padStart(2, '0');
+                uptimeCounter.innerHTML = `<i class="fa-solid fa-stopwatch"></i> ${mins}:${secs}`;
+            }, 1000);
+        }
 
-        // --- 3. Join Server (Room) ---
-        async function joinRoom() {
-            const roomID = document.getElementById('room-id').value.trim();
-            if (!roomID) return alert("Please enter a Room Name!");
-            if (TOKEN === "YOUR_TEMP_TEST_TOKEN_HERE") return alert("Developer: Please paste a Test Token in the code to run this on a browser!");
+        // VOLUME CHANGE LOGIC (For Remote Users)
+        window.changeUserVolume = (sid, volumeValue) => {
+            window.userVolumes[sid] = parseFloat(volumeValue);
+            const participant = room.participants.get(sid);
+            if (participant) {
+                participant.audioTrackPublications.forEach(pub => {
+                    if (pub.track && pub.track.attachedElements) {
+                        pub.track.attachedElements.forEach(el => {
+                            el.volume = window.userVolumes[sid];
+                        });
+                    }
+                });
+            }
+            
+            // Update Mute/Volume Icon in UI
+            const icon = document.getElementById(`vol-icon-${sid}`);
+            if(icon) {
+                if(volumeValue == 0) icon.className = "fa-solid fa-volume-xmark";
+                else if(volumeValue < 0.5) icon.className = "fa-solid fa-volume-low";
+                else icon.className = "fa-solid fa-volume-high";
+            }
+        };
+
+        // --- MAIN CONNECTION LOGIC ---
+        connectBtn.onclick = async () => {
+            const username = document.getElementById('username-input').value.trim();
+            const roomName = document.getElementById('room-input').value.trim();
+
+            if (!username || !roomName) { alert("Naam aur Room dono zaruri hai!"); return; }
+
+            connectBtn.disabled = true;
+            connectBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Connecting...';
 
             try {
-                // Login to Room
-                await zg.loginRoom(roomID, TOKEN, { userID, userName }, { userUpdate: true });
-                currentRoom = roomID;
+                // 1. Get Token
+                const response = await fetch(backendApiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, roomName })
+                });
+                const data = await response.json();
+                if (!data.success) throw new Error(data.error);
 
-                // Create Audio Stream
-                localStream = await zg.createStream({ camera: { audio: true, video: false } });
-                
-                // Publish Stream to Server
-                const streamID = roomID + "_" + userID;
-                zg.startPublishingStream(streamID, localStream);
+                // 2. Setup Room
+                room = new Room({
+                    adaptiveStream: true,
+                    dynacast: true
+                });
 
-                // Update UI
-                document.getElementById('current-room-name').innerText = roomID;
-                connectSection.classList.add('hidden');
-                voiceChannel.classList.remove('hidden');
-                btnDisconnect.style.display = 'flex';
+                // EVENT LISTENERS
+                room.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
+                    document.querySelectorAll('.video-container').forEach(el => el.classList.remove('speaking'));
+                    speakers.forEach(speaker => {
+                        const container = document.getElementById(`container-${speaker.sid}`);
+                        if (container) container.classList.add('speaking');
+                    });
+                });
 
-                setupSoundDetection();
+                room.on(RoomEvent.TrackSubscribed, (track, pub, participant) => {
+                   attachTrack(track, participant);
+                   updateParticipantList();
+                   
+                   // Apply saved volume for this user
+                   if (track.kind === 'audio') {
+                       if (window.userVolumes[participant.sid] !== undefined) {
+                           track.attachedElements.forEach(el => el.volume = window.userVolumes[participant.sid]);
+                       } else {
+                           window.userVolumes[participant.sid] = 1.0; // Default max volume
+                       }
+                   }
+                });
 
-            } catch (err) {
-                console.error("Login failed:", err);
-                alert("Could not connect to server. Check your Token.");
-            }
-        }
-
-        // --- 4. Handle Friends Joining/Leaving ---
-        zg.on('roomStreamUpdate', async (roomID, updateType, streamList, extendedData) => {
-            if (updateType === 'ADD') {
-                // When a friend joins, download their audio
-                for (const stream of streamList) {
-                    const remoteStream = await zg.startPlayingStream(stream.streamID);
+                room.on(RoomEvent.TrackUnsubscribed, (track, pub, participant) => {
+                    track.detach();
+                    let hasMedia = false;
+                    participant.videoTrackPublications.forEach(pub => { if(pub.track) hasMedia = true; });
+                    participant.audioTrackPublications.forEach(pub => { if(pub.track) hasMedia = true; });
                     
-                    // Create Audio Tag
-                    const audioEl = document.createElement('audio');
-                    audioEl.id = `audio-${stream.streamID}`;
-                    audioEl.autoplay = true;
-                    audioEl.srcObject = remoteStream;
-                    audioContainer.appendChild(audioEl);
-
-                    // Add UI Card
-                    const card = document.createElement('div');
-                    card.className = 'user-card';
-                    card.id = `card-${stream.streamID}`;
-                    card.innerHTML = `
-                        <div class="avatar" id="avatar-${stream.streamID}"><i class="fa-solid fa-user-astronaut"></i></div>
-                        <div class="user-info">
-                            <h3>${stream.user.userName}</h3>
-                            <p>Connected</p>
-                        </div>
-                        <button class="friend-controls" onclick="muteFriend('${stream.streamID}')" id="mute-btn-${stream.streamID}">
-                            <i class="fa-solid fa-volume-high" id="mute-icon-${stream.streamID}"></i>
-                        </button>
-                    `;
-                    activeUsersContainer.appendChild(card);
-                }
-            } else if (updateType === 'DELETE') {
-                // Remove friend when they leave
-                for (const stream of streamList) {
-                    zg.stopPlayingStream(stream.streamID);
-                    document.getElementById(`audio-${stream.streamID}`)?.remove();
-                    document.getElementById(`card-${stream.streamID}`)?.remove();
-                }
-            }
-        });
-
-        // --- 5. High-Performance Active Speaker Highlight ---
-        // Zego automatically detects who is speaking! No Web Audio API loop needed.
-        function setupSoundDetection() {
-            zg.setSoundLevelDelegate(true, 500); // Check volume every 500ms
-            
-            zg.on('capturedSoundLevelUpdate', (soundLevel) => {
-                const avatar = document.getElementById('local-avatar');
-                if (soundLevel > 10) avatar.classList.add('speaking');
-                else avatar.classList.remove('speaking');
-            });
-
-            zg.on('remoteSoundLevelUpdate', (soundLevelMap) => {
-                for (const [streamID, soundLevel] of Object.entries(soundLevelMap)) {
-                    const avatar = document.getElementById(`avatar-${streamID}`);
-                    if (avatar) {
-                        if (soundLevel > 10) avatar.classList.add('speaking');
-                        else avatar.classList.remove('speaking');
+                    if (!hasMedia) {
+                         const el = document.getElementById(`container-${participant.sid}`);
+                         if (el) el.remove();
                     }
+                    updateParticipantList();
+                });
+                
+                room.on(RoomEvent.ParticipantConnected, updateParticipantList);
+                room.on(RoomEvent.ParticipantDisconnected, (participant) => {
+                    delete window.userVolumes[participant.sid]; // Clean memory
+                    updateParticipantList();
+                });
+
+                room.on(RoomEvent.Disconnected, () => location.reload());
+
+                // 3. Connect
+                await room.connect(livekitUrl, data.token);
+
+                setupContainer.classList.add('hidden');
+                appLayout.classList.remove('hidden');
+                roomNameDisplay.innerText = roomName;
+                startUptimeTimer();
+
+                // 4. Sirf Microphone on karenge (Camera completely hata diya)
+                await room.localParticipant.setMicrophoneEnabled(true);
+                
+                // Add Local Avatar to Grid
+                createAvatarBox(room.localParticipant, true);
+                updateParticipantList();
+
+            } catch (error) {
+                console.error(error);
+                alert("Error: " + error.message);
+                connectBtn.disabled = false;
+                connectBtn.innerText = "Join Channel";
+            }
+        };
+
+        // HELPER: Create Avatar Box
+        function createAvatarBox(participant, isLocal = false) {
+            let container = document.getElementById(`container-${participant.sid}`);
+            if (!container) {
+                container = document.createElement('div');
+                container.className = 'video-container fade-in'; 
+                container.id = `container-${participant.sid}`;
+                
+                // Big Letter Avatar
+                const initial = participant.identity.charAt(0).toUpperCase();
+                const avatar = document.createElement('div');
+                avatar.className = 'large-avatar';
+                avatar.innerText = initial;
+                
+                // Name Tag with Mic status
+                const badge = document.createElement('div');
+                badge.className = 'identity-badge';
+                badge.id = `badge-${participant.sid}`;
+                badge.innerHTML = `<i class="fa-solid fa-microphone${participant.isMicrophoneEnabled ? '' : '-slash'}"></i> ${participant.identity}${isLocal ? ' (You)' : ''}`;
+                
+                container.appendChild(avatar);
+                container.appendChild(badge);
+                videoGrid.appendChild(container);
+            }
+            return container;
+        }
+
+        // HELPER: Attach Track (For Screen Share/Audio)
+        function attachTrack(track, participant, isLocal = false) {
+            let container = createAvatarBox(participant, isLocal);
+
+            const element = track.attach();
+            // Agar video/screen share hai, toh avatar ke upar chipka do
+            if (track.kind === 'video') {
+                const oldVid = container.querySelector('video');
+                if(oldVid) oldVid.remove();
+                if (isLocal) element.style.transform = 'scaleX(-1)'; 
+                container.insertBefore(element, container.firstChild);
+            }
+        }
+
+        // HELPER: Update Drawer List & Sliders
+        function updateParticipantList() {
+            participantList.innerHTML = '';
+            const participants = [room.localParticipant, ...room.participants.values()];
+            
+            participants.forEach(p => {
+                const isLocal = p === room.localParticipant;
+                const vol = window.userVolumes[p.sid] !== undefined ? window.userVolumes[p.sid] : 1;
+                const volIcon = vol == 0 ? "fa-volume-xmark" : (vol < 0.5 ? "fa-volume-low" : "fa-volume-high");
+                
+                // Har user ka box
+                const item = document.createElement('div');
+                item.className = 'participant-item';
+                
+                let htmlContent = `
+                    <div class="participant-avatar">${p.identity.charAt(0).toUpperCase()}</div>
+                    <div class="participant-info">
+                        <div class="participant-name">${p.identity} ${isLocal ? '(You)' : ''}</div>
+                `;
+
+                // Slider sirf dusre users ke liye aayega, khud ke liye nahi
+                if(!isLocal) {
+                    htmlContent += `
+                        <div class="volume-control">
+                            <i id="vol-icon-${p.sid}" class="fa-solid ${volIcon}"></i>
+                            <input type="range" min="0" max="1" step="0.05" value="${vol}" 
+                                   oninput="changeUserVolume('${p.sid}', this.value)">
+                        </div>
+                    `;
+                }
+                htmlContent += `</div>`;
+                item.innerHTML = htmlContent;
+                participantList.appendChild(item);
+
+                // Update Name Tag Mic Icon in Video Grid
+                const badge = document.getElementById(`badge-${p.sid}`);
+                if(badge) {
+                    badge.innerHTML = `<i class="fa-solid fa-microphone${p.isMicrophoneEnabled ? '' : '-slash'}"></i> ${p.identity} ${isLocal ? '(You)' : ''}`;
+                    if(!p.isMicrophoneEnabled) badge.style.color = "var(--danger)";
+                    else badge.style.color = "white";
                 }
             });
         }
 
-        // --- 6. Mute Controls ---
-        function toggleMic() {
-            if (!localStream) return;
-            isMuted = !isMuted;
+        // --- CONTROLS LOGIC ---
+        const toggleMicBtn = document.getElementById('toggle-mic');
+        toggleMicBtn.onclick = async () => {
+            if (!room) return;
+            const isEnabled = room.localParticipant.isMicrophoneEnabled;
             
-            // Mute local stream
-            zg.mutePublishStreamAudio(localStream, isMuted);
-
-            if (isMuted) {
-                btnMic.innerHTML = '<i class="fa-solid fa-microphone-slash"></i>';
-                btnMic.classList.add('muted');
-                micStatus.innerText = "Mic Muted";
-            } else {
-                btnMic.innerHTML = '<i class="fa-solid fa-microphone"></i>';
-                btnMic.classList.remove('muted');
-                micStatus.innerText = "Mic Active";
-            }
-        }
-
-        function muteFriend(streamID) {
-            const audio = document.getElementById(`audio-${streamID}`);
-            const btn = document.getElementById(`mute-btn-${streamID}`);
-            const icon = document.getElementById(`mute-icon-${streamID}`);
+            // Real-time Mic ON/OFF
+            await room.localParticipant.setMicrophoneEnabled(!isEnabled);
             
-            if (!audio) return;
-            audio.muted = !audio.muted;
+            // UI Update
+            toggleMicBtn.innerHTML = !isEnabled ? '<i class="fa-solid fa-microphone"></i>' : '<i class="fa-solid fa-microphone-slash"></i>';
+            toggleMicBtn.classList.toggle('btn-muted', isEnabled);
+            updateParticipantList(); 
+        };
+        
+        const toggleScreenBtn = document.getElementById('toggle-screen');
+        toggleScreenBtn.onclick = async () => {
+             if (!room) return;
+             const isEnabled = room.localParticipant.isScreenShareEnabled;
+             try {
+                 await room.localParticipant.setScreenShareEnabled(!isEnabled);
+                 toggleScreenBtn.classList.toggle('btn-active', !isEnabled);
+             } catch(e) {
+                 alert("Screen sharing not supported/denied.");
+             }
+        };
 
-            if (audio.muted) {
-                icon.className = "fa-solid fa-volume-xmark";
-                btn.classList.add('muted');
-            } else {
-                icon.className = "fa-solid fa-volume-high";
-                btn.classList.remove('muted');
-            }
-        }
-
-        // --- 7. Leave Server ---
-        function leaveRoom() {
-            if (currentRoom) {
-                if (localStream) zg.destroyStream(localStream);
-                zg.logoutRoom(currentRoom);
-            }
-            // Reset UI
-            voiceChannel.classList.add('hidden');
-            connectSection.classList.remove('hidden');
-            btnDisconnect.style.display = 'none';
-            audioContainer.innerHTML = '';
-            
-            // Remove all friend cards
-            const cards = document.querySelectorAll('.user-card');
-            cards.forEach((card, index) => {
-                if (index > 0) card.remove(); // Keep the first one (Local User)
-            });
-        }
+        document.getElementById('leave-btn').onclick = () => {
+            if (room) room.disconnect();
+        };
     </script>
 </body>
 </html>
